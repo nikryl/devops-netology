@@ -9,4 +9,4 @@
 5. Файлы override.tf, override.tf.json и файлы, названия которых оканчивается на _override форматов .tf и .tf.json
 6. Файлы .terraformrc и terraform.rc
 
-Новая строчка в ветку main
+Строка изменена
