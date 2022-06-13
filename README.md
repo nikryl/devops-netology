@@ -10,3 +10,5 @@
 6. Файлы .terraformrc и terraform.rc
 
 Строка изменена
+
+Внесены изменения в ветке recursive-merge
