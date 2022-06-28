@@ -96,6 +96,7 @@
 <br/><br/>
 13. Скажу честно, я лишь частично понимаю почему оно изначально не работало и как именно я это исправил :) Но в итоге удалось успешно выполнить `reptyr` в **screen**.  
     Полная последовательность действий будет описана в конце, сначала опишу трудности с которыми столкнулся:  
+
     ```bash
     # первая попытка жалуется на совпадение uid и направляет в ptrace_scope
     reptyr 1335
@@ -104,21 +105,21 @@
     The kernel denied permission while attaching. If your uid matches  
     the target's, check the value of /proc/sys/kernel/yama/ptrace_scope.  
     For more information, see /etc/sysctl.d/10-ptrace.conf  
-    ```
-    ```bash
+
     # может быть sudo все исправит? Как минимум другая ошибка
     sudo reptyr 1335
     
     [-] Unable to open the tty in the child.
-    ```
-    ```bash
+ 
     # ошибка с ubable to open the tty показалсь уже знакомой. На просторах интернета найдено решение с флагом -T. 
     # Как итог оно просто виснет.
     sudo reptyr -T 1335
-      ```
+    ```  
+
     Нашел другое решение ошибки из самой первой попытки, связанной с uid в prace_scope - `echo 0 > /proc/sys/kernel/yama/ptrace_scope`. Оно один в один совпало с ошибкой в задании **14** и не выполняется.  
     Поэтому применяем полученные навыки и выполняем `echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope`. После этого полностью повторяю перемещение процесса с помощью **reptyr**. Успешно :)
-    ```bash
+
+    ```  
     top
     # Ctrl + Z и отправляем процесс в фон
     jobs -l
@@ -126,7 +127,7 @@
     disown <PID>
     screen -S 'reptyr-to'
     reptyr <PID>
-    ```
+    ```  
 <br/><br/>
 14. Как и описано в задании в `sudo echo string > /root/new_file` перенаправлением занимается процесс shell, который запущен без sudo. Sudo не осуществляет перенаправление, а применяется только для echo.  
     `tee`  читает stdin и записывает из него в файл и в stdout (именно поэтому при выполнении `echo string | sudo tee /root/new_file` мы видим вывод _string_ в консоль).  
