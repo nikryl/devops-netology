@@ -1,94 +1,139 @@
-# Домашнее задание к занятию "4.1. Командная оболочка Bash: Практические навыки"
+# Домашнее задание к занятию "4.2. Использование Python для решения типовых DevOps задач"
 
 ## Обязательная задача 1
 
 Есть скрипт:
-```bash
-a=1
-b=2
-c=a+b
-d=$a+$b
-e=$(($a+$b))
+```python
+#!/usr/bin/env python3
+a = 1
+b = '2'
+c = a + b
 ```
 
-Какие значения переменным c,d,e будут присвоены? Почему?
-
-| Переменная  | Значение | Обоснование |
-| ------------- | ------------- | ------------- |
-| `c`  | `a+b`  | к переменным нужно обращаться через $ |
-| `d`  | `1+2`  | для выполнения арифместичекого сложения необходимы скобки или переменная d должна быть объявлена целочисленной явным образом |
-| `e`  | `3`    | правильное использование синтаксиса операции сложения в bash |
-
+### Вопросы:
+| Вопрос  | Ответ |
+| ------------- | ------------- |
+| Какое значение будет присвоено переменной `c`?  | exception TypeError  |
+| Как получить для переменной `c` значение 12?  |c = str(a) + b  |
+| Как получить для переменной `c` значение 3?  | c = a + int(b)  |
 
 ## Обязательная задача 2
-На нашем локальном сервере упал сервис и мы написали скрипт, который постоянно проверяет его доступность, записывая дату проверок до тех пор, пока сервис не станет доступным (после чего скрипт должен завершиться). В скрипте допущена ошибка, из-за которой выполнение не может завершиться, при этом место на Жёстком Диске постоянно уменьшается. Что необходимо сделать, чтобы его исправить:
-```bash
-while ((1==1)
-do
-   curl https://localhost:4757
-   if (($? != 0))
-   then
-      date >> curl.log
-   fi
-done
+Мы устроились на работу в компанию, где раньше уже был DevOps Engineer. Он написал скрипт, позволяющий узнать, какие файлы модифицированы в репозитории, относительно локальных изменений. Этим скриптом недовольно начальство, потому что в его выводе есть не все изменённые файлы, а также непонятен полный путь к директории, где они находятся. Как можно доработать скрипт ниже, чтобы он исполнял требования вашего руководителя?
+
+```python
+#!/usr/bin/env python3
+
+import os
+
+bash_command = ["cd ~/netology/sysadm-homeworks", "git status"]
+result_os = os.popen(' && '.join(bash_command)).read()
+is_change = False
+for result in result_os.split('\n'):
+    if result.find('modified') != -1:
+        prepare_result = result.replace('\tmodified:   ', '')
+        print(prepare_result)
+        break
 ```
 
 ### Ваш скрипт:
-```bash
-while ((1==1); do
-   curl https://localhost:4757
-   if (($? != 0))
-   then
-      date >> curl.log
-   else
-      break  #В оригинальной версии, когда сервис становился доступным, цикл не прекращался
-   fi
-done
+```python
+#!/usr/bin/env python3
+
+import os
+
+path = '~/nikolai/devops-netology/'
+bash_command = ["cd " + path, "git status"]
+result_os = os.popen(' && '.join(bash_command)).read()
+for result in result_os.split('\n'):
+    if result.find('modified') != -1:
+        prepare_result = result.replace('\tmodified:   ', '')
+        print(path + prepare_result)
+```
+
+### Вывод скрипта при запуске при тестировании:
+```
+~/nikolai/devops-netology/README.md
+~/nikolai/devops-netology/terraform/has_been_moved.txt
 ```
 
 ## Обязательная задача 3
-Необходимо написать скрипт, который проверяет доступность трёх IP: `192.168.0.1`, `173.194.222.113`, `87.250.250.242` по `80` порту и записывает результат в файл `log`. Проверять доступность необходимо пять раз для каждого узла.
+1. Доработать скрипт выше так, чтобы он мог проверять не только локальный репозиторий в текущей директории, а также умел воспринимать путь к репозиторию, который мы передаём как входной параметр. Мы точно знаем, что начальство коварное и будет проверять работу этого скрипта в директориях, которые не являются локальными репозиториями.
 
 ### Ваш скрипт:
-```bash
-#!/bin/bash
+```python
+#!/usr/bin/env python3
 
-i=1
-date > log
-while (($i < 6))
-do    
-   echo -e '\nTrying 192.168.0.1:80 attempt' $i >> log      
-   nc -z -v 192.168.0.1 80 2>> log
+from subprocess import call, STDOUT
+import os
+import sys
 
-   echo -e '\nTrying 173.194.222.113:80 attempt' $i >> log      
-   nc -z -v 173.194.222.113 80 2>> log
+if len(sys.argv) != 2:
+    print('Please specify PATH (only one PATH accepted)')
+    exit()
 
-   echo -e '\nTrying 87.250.250.242:80 attempt' $i >> log      
-   nc -z -v 87.250.250.242 80 2>> log
-   
-   let "i += 1"
-done
+path = sys.argv[1]
+if call(['git', '-C', path, 'status'], stderr=STDOUT, stdout=open(os.devnull, 'w')) != 0:
+    print('Not a GIT directory')
+    exit()
+
+bash_command = ["cd " + path, "git status"]
+result_os = os.popen(' && '.join(bash_command)).read()
+for result in result_os.split('\n'):
+    if result.find('modified') != -1:
+        prepare_result = result.replace('\tmodified:   ', '')
+        print(path + prepare_result)
+```
+
+### Вывод скрипта при запуске при тестировании:
+```
+#При неверном количестве аргументов
+Please specify PATH (only one PATH accepted)
+
+#При ошибке директории
+Not a GIT directory
+
+#При успешном запуске
+~/nikolai/devops-netology/README.md
+~/nikolai/devops-netology/terraform/has_been_moved.txt
 ```
 
 ## Обязательная задача 4
-Необходимо дописать скрипт из предыдущего задания так, чтобы он выполнялся до тех пор, пока один из узлов не окажется недоступным. Если любой из узлов недоступен - IP этого узла пишется в файл error, скрипт прерывается.
+1. Наша команда разрабатывает несколько веб-сервисов, доступных по http. Мы точно знаем, что на их стенде нет никакой балансировки, кластеризации, за DNS прячется конкретный IP сервера, где установлен сервис. Проблема в том, что отдел, занимающийся нашей инфраструктурой очень часто меняет нам сервера, поэтому IP меняются примерно раз в неделю, при этом сервисы сохраняют за собой DNS имена. Это бы совсем никого не беспокоило, если бы несколько раз сервера не уезжали в такой сегмент сети нашей компании, который недоступен для разработчиков. Мы хотим написать скрипт, который опрашивает веб-сервисы, получает их IP, выводит информацию в стандартный вывод в виде: <URL сервиса> - <его IP>. Также, должна быть реализована возможность проверки текущего IP сервиса c его IP из предыдущей проверки. Если проверка будет провалена - оповестить об этом в стандартный вывод сообщением: [ERROR] <URL сервиса> IP mismatch: <старый IP> <Новый IP>. Будем считать, что наша разработка реализовала сервисы: `drive.google.com`, `mail.google.com`, `google.com`.
 
 ### Ваш скрипт:
-```bash
-#!/bin/bash
+```python
+#!/usr/bin/env python3
 
-addresses=(192.168.0.1 173.194.222.113 87.250.250.242)
+import json
+import socket
 
-while ((1 == 1))
-do    
-   for ip in ${addresses[@]}
-   do
-      nc -z -v $ip 80
-      if (($? != 0)); then
-         date >> error
-         echo 'Failed cheching port 80 for' $ip >> error
-         break 2
-      fi
-   done
-done
+try:
+    with open('ip_log', 'r') as file:
+        hosts = json.load(file)
+except:
+    hosts = {'mail.google.com':'unknown', 'drive.google.com':'unknown', 'google.com':'unknown'}
+
+for host, ip in hosts.items():
+    new_ip = socket.gethostbyname(host)
+    if new_ip == ip:
+        print(f'{host} - {new_ip}')
+    else:
+        print(f'<[ERROR] <{host}> IP mismatch: old <{ip}> new <{new_ip}>>')
+    hosts[host] = new_ip
+
+with open('ip_log', 'w') as file:
+    json.dump(hosts, file)
+```
+
+### Вывод скрипта при запуске при тестировании:
+```
+#Первый запуск
+<[ERROR] <mail.google.com> IP mismatch: old <unknown> new <173.194.222.18>>
+<[ERROR] <drive.google.com> IP mismatch: old <unknown> new <173.194.220.194>>
+<[ERROR] <google.com> IP mismatch: old <unknown> new <64.233.162.138>>
+
+#Повторный запуск
+<[ERROR] <mail.google.com> IP mismatch: old <173.194.222.18> new <173.194.222.19>>
+drive.google.com - 173.194.220.194
+<[ERROR] <google.com> IP mismatch: old <64.233.162.138> new <64.233.162.101>>
 ```
