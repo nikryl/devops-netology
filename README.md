@@ -1,164 +1,155 @@
-# Домашнее задание к занятию "6.2. SQL"
+# Домашнее задание к занятию "6.3. MySQL"
 ___
 ## Задача 1
 ___
 
-```yml
-version: "3.9"
-services:
-  db:
-    container_name: postgres
-    image: postgres:12
-    ports:
-      - 5432:5432
-    environment:
-      POSTGRES_USER: test-admin-user
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: test_db
-    volumes:
-      - /home/nikolai/Documents/Study/repos/docker/data:/var/lib/postgresql/data
-      - /home/nikolai/Documents/Study/repos/docker/backup:/data/backup
-volumes:
-  data:
-  backup:
-```
+```bash
+# Запуск mysql в docker
+docker run --name mysql -e MYSQL_ROOT_PASSWORD=mysql -e MYSQL_DATABASE=test_db -v /data/mysql_backup:/data/backup -p 3306:3306 -d mysql:8
 
-Порт 5432 был проброшен для возможности использования клиента SQL (например DBeaver). Для подключения напрямую к нашему контейнеру и работы с psql использую команду `docker exec -it postgres psql -U test-admin-user -d test_db`.
+# Подключение к контейнеру
+docker exec -it mysql bash
+
+# Восстановление из бэкапа
+mysql -p test_db < /data/backup/test_dump.sql
+
+# Подключение к консоли mysql
+mysql --password=mysql
+
+# Просмотр статуса. Версия сервера 8.0.31
+\s
+
+mysql  Ver 8.0.31 for Linux on x86_64 (MySQL Community Server - GPL)
+
+Connection id:    9
+Current database: test_db
+Current user:   root@localhost
+SSL:      Not in use
+Current pager:    stdout
+Using outfile:    ''
+Using delimiter:  ;
+Server version:   8.0.31 MySQL Community Server - GPL
+Protocol version: 10
+Connection:   Localhost via UNIX socket
+Server characterset:  utf8mb4
+Db     characterset:  utf8mb4
+Client characterset:  latin1
+Conn.  characterset:  latin1
+UNIX socket:    /var/run/mysqld/mysqld.sock
+Binary data as:   Hexadecimal
+Uptime:     10 min 24 sec
+
+# Подключение к восстановленной БД
+\u test_db
+
+# Список таблиц в восстановленной БД
+show tables from test_db;
+
++-------------------+
+| Tables_in_test_db |
++-------------------+
+| orders            |
++-------------------+
+1 row in set (0.00 sec)
+
+# Записи с price > 300
+select * from orders where price > 300;
+
++----+----------------+-------+
+| id | title          | price |
++----+----------------+-------+
+|  2 | My little pony |   500 |
++----+----------------+-------+
+1 row in set (0.00 sec)
+```
   
 ___
 ## Задача 2
 ___
 
-- База данных и пользователь были созданы в docker-compose файле. Пример создания пользователя с помощью SQL синтаксиса будет далее в задании, при необходимости создания БД можно воспользоваться запросом `create database test_db;` при использовании psql переключиться на новую БД можно с помощью `\c test_db`.
 
-- Создание таблиц `orders` и `clients`:
 ```sql
-create table orders(id serial primary key, name varchar, price integer);
-create table clients (id serial primary key,name varchar, country varchar, order_id integer references orders(id));
+
+-- Создание пользователя test
+CREATE user 'test@localhost' 
+  IDENTIFIED WITH mysql_native_password BY 'test-pass'
+  WITH MAX_QUERIES_PER_HOUR 100
+  PASSWORD EXPIRE INTERVAL 180 DAY
+  FAILED_LOGIN_ATTEMPTS 3
+  ATTRIBUTE '{"fname": "James", "lname": "Pretty"}';
+
+
+-- Предоставление привилегии SELECT
+grant select on test_db.* to 'test'@'localhost';
+
+-- Получение данных пользователя
+select attribute from information_schema.user_attributes where user = 'test';
+
 ```
-
-- Предоставление прав на таблицы *orders* и *clients* для пользователя *test-admin-user*:
-```sql
-grant all on orders, clients to "test-admin-user";
-```
-
-- Создание пользователя *test-simple-user*:
-```sql
-create user "test-simple-user";
-```
-
-___
-Итог
-
-- Список БД
-  ![DB list](images/hw-6.2-2-1.png)
-
-  Или `SELECT datname FROM pg_database;`
-
- - Описание таблиц
-   ![Describe](images/hw-6.2-2-2.png)
-
-   Или
-
- ```sql
-SELECT table_name, column_name, data_type 
-FROM information_schema.columns
-WHERE table_name = 'orders';
-```
-
-- Права пользователей над таблицами
-```sql
-SELECT grantee, privilege_type, table_name, table_catalog 
-FROM information_schema.role_table_grants rtg 
-WHERE table_name in ('orders', 'clients') 
-```
-
-- Список пользователей
-  ![User list](images/hw-6.2-2-3.png)
+![Result](images/hw-6.3-2.png)
 ___
 ## Задача 3
 ___
 
-Вставка данных
+- `SET profiling = 1;` устанавливает переменную уровня сессии profiling в значение 1 и позволяет отслеживать историю последних запросов отправленных на сервер.
+  `SHOW PROFILES;` отображает список последних использованных запросов (по умолчанию 15, макс. значение - 100) и время их выполнения.
+  `SHOW PROFILE;` показывает детальную информацию по выполнению отдельного запроса. Для более детальной информации можно использовать `ALL` (или отдельно взятый интересующий нас тип: BLOCK IO, CPU, IPC, MEMORY и т.д.). Можно указать интересующий нас запрос указав `FOR QUERY n`.
+
+  `SHOW PROFILE` и `SHOW PROFILES` помечены как *deprecated*. Официальное руководство рекомендует использовать вместо этого [Performance Schema](https://dev.mysql.com/doc/refman/8.0/en/performance-schema.html).
+  
+- В таблице *orders* нашей БД используется engine InnoDB
 
 ```sql
-insert into orders (name, price) values ('Шоколад', 10),('Принтер', 3000),('Книга',500),('Монитор',7000),('Гитара',4000);
+SELECT TABLE_NAME,
+       ENGINE
+FROM   information_schema.TABLES
+WHERE  TABLE_SCHEMA = 'test_db';
 
-insert into clients (name, country) values 
-	('Иванов Иван Иванович','USA')
-   ,('Петров Петр Петрович','Canada')
-   ,('Иоганн Себастьян Бах','Japan')
-   ,('Ронни Джеймс Дио','Russia')
-   ,('Ritchie Blackmore','Russia');
++------------+--------+
+| TABLE_NAME | ENGINE |
++------------+--------+
+| orders     | InnoDB |
++------------+--------+
+1 row in set (0.00 sec)
 ```
-___
-Итог
-
-Запрос на количество записей в таблицах и результат выполнения:
-![Count](images/hw-6.2-3-1.png)
-
+  
+- Изменение engine
+  ![Engine](images/hw-6.3-3.png)
 ___
 ## Задача 4
 ___
 
-- Добавление данных о заказе в таблицу *clients*:
-
-```sql
-update clients 
-set order_id = (select id from orders where name='Книга') 
-where name='Иванов Иван Иванович';
-
-update clients 
-set order_id = (select id from orders where name='Монитор') 
-where name='Петров Петр Петрович';
-
-update clients 
-set order_id = (select id from orders where name='Гитара') 
-where name='Иоганн Себастьян Бах';
+Содержание файла *my.cnf*
 ```
+[mysqld]
+# Настройки для ДЗ
 
-- Выдача пользователей
-  ![Clients with orders](images/hw-6.2-4-1.png)
+#Скорость IO важнее сохранности данных
+innodb_flush_log_at_trx_commit = 2
 
-___
-## Задача 5
-___
+#Нужна компрессия таблиц для экономии места на диске. Сохраняем таблицы в отдельных файлах, компрессия задается на уровне таблиц.
+innodb_file_per_table = ON
 
-![Explain](images/hw-6.2-5-1.png)
+#Размер буффера с незакомиченными транзакциями 1 Мб
+innodb_log_buffer_size = 1M
 
-- **seq scan** означает, что планировщик выбрал последовательное сканирование таблицы
-- **cost** приблизительная (предварительная) стоимость выполнения операции. Первое значение **cost** на получение первой строки, второй значение - на получение всех строк
-- **rows** ожидаемое количество возвращаемых строк. Предполагается, что запрос выполняет до конца
-- **width** ожидаемые средний размер возвращаемых строк (в байтах)
+#Буффер кеширования 30% от ОЗУ исходя из доступных 32ГБ
+innodb_buffer_pool_size = 9.6G
 
-___
-## Задача 6
-___
+#Размер файла логов операций 100 Мб
+innodb_log_file_size = 100M
 
-```bash
-❯ docker exec -it postgres /bin/bash
-root@eb48b42498df:/# pg_dump -U test-admin-user test_db > /data/backup/test_db_backup.sql
-root@eb48b42498df:/# ls /data/backup/
-test_db_backup.sql
-root@eb48b42498df:/# exit
-exit
-❯
-❯
-❯ docker stop postgres
-postgres
-❯ docker ps
-CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
-❯
-❯
-❯ docker run --name postgres2 -e POSTGRES_USER=restore_user -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=test_db_restore -d -v /home/nikolai/Documents/Study/repos/docker/backup:/data/backup postgres:12
-bbc405667e7ea15860b729e04b27b27ec0a530bd29a1d139bd12c139e9780b7c
-❯ docker exec -it postgres2 /bin/bash
-root@bbc405667e7e:/# ls /data/backup/
-test_db_backup.sql
-root@bbc405667e7e:/# psql test_db_restore -U restore_user < /data/backup/test_db_backup.sql
+# Конфиг по умолчанию
+skip-host-cache
+skip-name-resolve
+datadir=/var/lib/mysql
+socket=/var/run/mysqld/mysqld.sock
+secure-file-priv=/var/lib/mysql-files
+user=mysql
 
+pid-file=/var/run/mysqld/mysqld.pid
+[client]
+socket=/var/run/mysqld/mysqld.sock
+
+!includedir /etc/mysql/conf.d/
 ```
-
-![Restored DB](images/hw-6.2-6-1.png)
-
-Но в целом если мы монтируем общий *volume* двух контейнеров postgres в `/var/lib//postgresql/data`, то при создании нового контейнера все наши роли и данные сохраняются и работают без дополнительных манипуляций.
