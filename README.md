@@ -1,66 +1,34 @@
-# Домашнее задание к занятию "6.3. MySQL"
+# Домашнее задание к занятию "6.4. PostgreSQL"
 ___
 ## Задача 1
 ___
 
 ```bash
-# Запуск mysql в docker
-docker run --name mysql -e MYSQL_ROOT_PASSWORD=mysql -e MYSQL_DATABASE=test_db -v /data/mysql_backup:/data/backup -p 3306:3306 -d mysql:8
+# Запуск postresql в docker
+docker run --name postgres -e POSTGRES_PASSWORD=postgres -v ${PWD}:/data/backup -d postgres:13
 
-# Подключение к контейнеру
-docker exec -it mysql bash
+# Подключение к docker контейнеру
+docker exec -it postgres bash
 
-# Восстановление из бэкапа
-mysql -p test_db < /data/backup/test_dump.sql
+# Подключение к БД с помощью psql
+psql -U postgres
 
-# Подключение к консоли mysql
-mysql --password=mysql
+# Вывод списка БД
+# "+" отображает дополнительную информацию 
+\l[+]
 
-# Просмотр статуса. Версия сервера 8.0.31
-\s
+# Подключение к бд
+\c db_name
 
-mysql  Ver 8.0.31 for Linux on x86_64 (MySQL Community Server - GPL)
+# Вывод списка таблиц
+# "S" отображает системные объекты
+\d[S+]
 
-Connection id:    9
-Current database: test_db
-Current user:   root@localhost
-SSL:      Not in use
-Current pager:    stdout
-Using outfile:    ''
-Using delimiter:  ;
-Server version:   8.0.31 MySQL Community Server - GPL
-Protocol version: 10
-Connection:   Localhost via UNIX socket
-Server characterset:  utf8mb4
-Db     characterset:  utf8mb4
-Client characterset:  latin1
-Conn.  characterset:  latin1
-UNIX socket:    /var/run/mysqld/mysqld.sock
-Binary data as:   Hexadecimal
-Uptime:     10 min 24 sec
+# Описание содержмимого таблиц
+\d[S+] table_name
 
-# Подключение к восстановленной БД
-\u test_db
-
-# Список таблиц в восстановленной БД
-show tables from test_db;
-
-+-------------------+
-| Tables_in_test_db |
-+-------------------+
-| orders            |
-+-------------------+
-1 row in set (0.00 sec)
-
-# Записи с price > 300
-select * from orders where price > 300;
-
-+----+----------------+-------+
-| id | title          | price |
-+----+----------------+-------+
-|  2 | My little pony |   500 |
-+----+----------------+-------+
-1 row in set (0.00 sec)
+# Выход из psql
+\q
 ```
   
 ___
@@ -69,87 +37,89 @@ ___
 
 
 ```sql
-
--- Создание пользователя test
-CREATE user 'test@localhost' 
-  IDENTIFIED WITH mysql_native_password BY 'test-pass'
-  WITH MAX_QUERIES_PER_HOUR 100
-  PASSWORD EXPIRE INTERVAL 180 DAY
-  FAILED_LOGIN_ATTEMPTS 3
-  ATTRIBUTE '{"fname": "James", "lname": "Pretty"}';
-
-
--- Предоставление привилегии SELECT
-grant select on test_db.* to 'test'@'localhost';
-
--- Получение данных пользователя
-select attribute from information_schema.user_attributes where user = 'test';
-
+-- Создание БД
+create database test_database;
 ```
-![Result](images/hw-6.3-2.png)
+```bash
+# Восстановление бэкапа
+psql test_database -U postgres < /data/backup/test_dump.sql
+```
+```sql
+-- Выполняем *analyze* на таблицу *orders*
+analyze orders;
+
+-- Выбираем столбец с максимальным средним значением размера элементов в байтах
+select attname, avg_width 
+from pg_stats 
+where tablename = 'orders' 
+order by avg_width desc 
+limit 1;
+
+ attname | max_avg_width
+---------+---------------
+ title   |            16
+(1 row)
+```
+
 ___
 ## Задача 3
 ___
 
-- `SET profiling = 1;` устанавливает переменную уровня сессии profiling в значение 1 и позволяет отслеживать историю последних запросов отправленных на сервер.
-  `SHOW PROFILES;` отображает список последних использованных запросов (по умолчанию 15, макс. значение - 100) и время их выполнения.
-  `SHOW PROFILE;` показывает детальную информацию по выполнению отдельного запроса. Для более детальной информации можно использовать `ALL` (или отдельно взятый интересующий нас тип: BLOCK IO, CPU, IPC, MEMORY и т.д.). Можно указать интересующий нас запрос указав `FOR QUERY n`.
+Создаем 2 новые таблицы, в которые попадут данные из таблицы *orders*
+```sql
+create table orders_1 (check (price > 499)) inherits (orders);
+create table orders_2 (check (price <= 499)) inherits (orders);
+```
 
-  `SHOW PROFILE` и `SHOW PROFILES` помечены как *deprecated*. Официальное руководство рекомендует использовать вместо этого [Performance Schema](https://dev.mysql.com/doc/refman/8.0/en/performance-schema.html).
-  
-- В таблице *orders* нашей БД используется engine InnoDB
+Копируем данные из таблицы *orders* в новые таблицы и затем удаляем в оригинальной таблице *orders*.
+При удалении обязательно указать ключевое слово `ONLY`, в противном случае данные будут удалены во всех таблицах, наследовавшихся от *orders*.
 
 ```sql
-SELECT TABLE_NAME,
-       ENGINE
-FROM   information_schema.TABLES
-WHERE  TABLE_SCHEMA = 'test_db';
-
-+------------+--------+
-| TABLE_NAME | ENGINE |
-+------------+--------+
-| orders     | InnoDB |
-+------------+--------+
-1 row in set (0.00 sec)
+insert into orders_1 select * from orders where price > 499;
+insert into orders_2 select * from orders where price <= 499;
+delete from only orders;
 ```
-  
-- Изменение engine
-  ![Engine](images/hw-6.3-3.png)
+
+Eсли мы хотим, чтобы при вставке данных в *orders* наша логика разделения сохранялась, мы можем создать 2 новых правила:
+```sql
+CREATE RULE orders_1_insert AS
+  ON INSERT TO orders WHERE (price > 499)
+  DO INSTEAD INSERT INTO orders_1 VALUES (NEW.*);
+
+CREATE RULE orders_2_insert AS
+  ON INSERT TO orders WHERE (price <= 499)
+  DO INSTEAD INSERT INTO orders_2 VALUES (NEW.*);
+```
+
+Такой подход можно было использовать с самого начала при создании таблицы *orders*. Также можно использовать *partitioning*:
+```sql
+CREATE TABLE orders (
+  id integer NOT NULL,
+  title character varying(80) NOT NULL,
+  price integer DEFAULT 0
+) PARTITION BY RANGE (price);
+
+CREATE TABLE orders_1 PARTITION OF orders
+    FOR VALUES FROM ('500') TO ('99999');
+
+CREATE TABLE orders_2 PARTITION OF orders
+    FOR VALUES FROM ('0') TO ('500');
+
+```
+
+В данном случае есть минус, при котором не удастся хранить значения превышающие верхний предел таблицы *orders_1*. Для использования *partitioning* следует убедиться, что параметр *enable_partition_pruning* не отключен в конфигурации *postgresql.conf*.
+
+Для обоих подходов хорошей идеей будет создание индекса на столбце *price*.
+
 ___
 ## Задача 4
 ___
 
-Содержание файла *my.cnf*
-```
-[mysqld]
-# Настройки для ДЗ
-
-#Скорость IO важнее сохранности данных
-innodb_flush_log_at_trx_commit = 2
-
-#Нужна компрессия таблиц для экономии места на диске. Сохраняем таблицы в отдельных файлах, компрессия задается на уровне таблиц.
-innodb_file_per_table = ON
-
-#Размер буффера с незакомиченными транзакциями 1 Мб
-innodb_log_buffer_size = 1M
-
-#Буффер кеширования 30% от ОЗУ исходя из доступных 32ГБ
-innodb_buffer_pool_size = 9.6G
-
-#Размер файла логов операций 100 Мб
-innodb_log_file_size = 100M
-
-# Конфиг по умолчанию
-skip-host-cache
-skip-name-resolve
-datadir=/var/lib/mysql
-socket=/var/run/mysqld/mysqld.sock
-secure-file-priv=/var/lib/mysql-files
-user=mysql
-
-pid-file=/var/run/mysqld/mysqld.pid
-[client]
-socket=/var/run/mysqld/mysqld.sock
-
-!includedir /etc/mysql/conf.d/
+Редактируем файл test_dump.sql в разделе создания таблицы и добавляем `UNIQUE` для столбца *title*
+```sql
+CREATE TABLE public.orders (
+  id integer NOT NULL,
+  title character varying(80) UNIQUE NOT NULL,
+  price integer DEFAULT 0
+);
 ```
