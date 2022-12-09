@@ -3,25 +3,27 @@
   hosts: all
   tasks:
     - name: Set facts for Java 11 vars
-      set_fact:
+      ansible.builtin.set_fact:
         java_home: "/opt/jdk/{{ java_jdk_version }}"
       tags: java
     - name: Upload .tar.gz file containing binaries from local storage
-      copy:
+      ansible.builtin.copy:
         src: "{{ java_oracle_jdk_package }}"
         dest: "/tmp/jdk-{{ java_jdk_version }}.tar.gz"
+        mode: 0755
       register: download_java_binaries
       until: download_java_binaries is succeeded
       tags: java
     - name: Ensure installation dir exists
-      become: true
-      file:
+      # become: true
+      ansible.builtin.file:
         state: directory
         path: "{{ java_home }}"
+        mode: 0755
       tags: java
     - name: Extract java in the installation directory
-      become: true
-      unarchive:
+      # become: true
+      ansible.builtin.unarchive:
         copy: false
         src: "/tmp/jdk-{{ java_jdk_version }}.tar.gz"
         dest: "{{ java_home }}"
@@ -30,16 +32,17 @@
       tags:
         - java
     - name: Export environment variables
-      become: true
-      template:
+      # become: true
+      ansible.builtin.template:
         src: jdk.sh.j2
         dest: /etc/profile.d/jdk.sh
+        mode: 0755
       tags: java
 - name: Install Elasticsearch
   hosts: elasticsearch
   tasks:
     - name: Upload tar.gz Elasticsearch from remote URL
-      get_url:
+      ansible.builtin.get_url:
         url: "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-{{ elastic_version }}-linux-x86_64.tar.gz"
         dest: "/tmp/elasticsearch-{{ elastic_version }}-linux-x86_64.tar.gz"
         mode: 0755
@@ -50,13 +53,14 @@
       until: get_elastic is succeeded
       tags: elastic
     - name: Create directrory for Elasticsearch
-      file:
+      ansible.builtin.file:
         state: directory
         path: "{{ elastic_home }}"
+        mode: 0755
       tags: elastic
     - name: Extract Elasticsearch in the installation directory
-      become: true
-      unarchive:
+      # become: true
+      ansible.builtin.unarchive:
         copy: false
         src: "/tmp/elasticsearch-{{ elastic_version }}-linux-x86_64.tar.gz"
         dest: "{{ elastic_home }}"
@@ -65,16 +69,17 @@
       tags:
         - elastic
     - name: Set environment Elastic
-      become: true
-      template:
+      # become: true
+      ansible.builtin.template:
         src: templates/elk.sh.j2
         dest: /etc/profile.d/elk.sh
+        mode: 0755
       tags: elastic
 - name: Install Vector
   hosts: vector
   tasks:
     - name: Upload tar.gz Vector from remote URL
-      get_url:
+      ansible.builtin.get_url:
         url: "https://packages.timber.io/vector/{{ vector_version }}/vector-{{ vector_version }}-x86_64-unknown-linux-gnu.tar.gz"
         dest: "/tmp/vector-{{ vector_version }}-x86_64-unknown-linux-gnu.tar.gz"
         mode: 0755
@@ -85,13 +90,13 @@
       until: get_vector is succeeded
       tags: vector
     - name: Create directrory for Vector
-      file:
+      ansible.builtin.file:
         state: directory
         path: "{{ vector_home }}"
+        mode: 0755
       tags: vector
     - name: Extract Vector in the installation directory
-      become: true
-      unarchive:
+      ansible.builtin.unarchive:
         copy: false
         src: "/tmp/vector-{{ vector_version }}-x86_64-unknown-linux-gnu.tar.gz"
         dest: "{{ vector_home }}"
@@ -100,8 +105,8 @@
       tags:
         - vector
     - name: Set environment Vector
-      become: true
-      template:
-        src: templates/vect.sh.j2
-        dest: /etc/profile.d/vect.sh
+      ansible.builtin.template:
+        src: templates/vec.sh.j2
+        dest: /etc/profile.d/vec.sh
+        mode: 0755
       tags: vector
