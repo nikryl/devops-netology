@@ -42,6 +42,21 @@
   
 9. Подготовьте README.md файл по своему playbook. В нём должно быть описано: что делает playbook, какие у него есть параметры и теги:  
   
-    Описание playbook выполнено в предыдущих пунктах.
+    - 1й play содержит tasks для установки Clickhouse на выделенном хосте.  
+        - Task *Install clickhouse packages* в цикле загружает и устанавливает пакеты *clickhouse-common-static*, *clickhouse-client*,*clickhouse-server* (имена пакетов и устанавливаемая версия заданы переменными в файле *group_vars/clickhouse/vars.yml*) в конце task вызывается handler для запуска сервиса.  
+        - Следующий task Flush handlers предназначен для исполнения handler не дожидаясь конца текущего play.  
+        - В конце текущего play мы создаем новую базу данных **logs** в Clickhouse.  
+        - Для всех task в этом play используется тэг **clickhouse**.
+    - 2й play отвечает за установку Vector на выделенном хосте.  
+        - Task *Upload tar.gz Vector from remote URL* скачивает архив Vector (версия указана в виде переменной в файле *group_vars/clickhouse/vars.yml*)  
+        -  Task *Create directrory for Vector* создает новую директорию по пути, указанному в переменной *vector_home* (задана в *group_vars/clickhouse/vars.yml*)  
+        - Task *Extract Vector in the installation directory* распаковывает скачанный ранее архив Vector в директорию *vector_home*.  
+        - Task *Set environment Vector* исполняет скрипт из шаблона *templates/vec.sh.j2* для экспорта новой директории в PATH.  
+        - Для всех task в этом play используется тэг **vector**.  
+    - 3й play *Install and configure LightHouse* устанавливает Lighthouse и Nginx на выделенном хосте.  
+        - Task *Clone LightHouse GIT repository* клонирует GIT репозиторий Lighthouse в новую директорию */LightHouse*.  
+        - Task *Install Nginx* устанавливает на данном хосте Nginx с помощью пакетного менеджера apt.  
+        - Task *Copy Nginx config* копирует конфигурационный файл Nginx, предназначенный для открытия Lighthouse. Путь к файлу на локальной машине задан переменной *clickhouse_config* (*group_vars/lighthouse/vars.yml*). В конце task вызывает handler для запуска Nginx.  
+        - Для всех task в этом play используется тэг **lighthouse**.  
   
 10. Готовый playbook выложите в свой репозиторий, поставьте тег `08-ansible-03-yandex` на фиксирующий коммит, в ответ предоставьте ссылку на него.

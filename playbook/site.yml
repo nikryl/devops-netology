@@ -14,13 +14,16 @@
         deb: https://packages.clickhouse.com/deb/pool/main/c/{{ item }}/{{ item }}_{{ clickhouse_version }}_amd64.deb
       with_items: "{{ clickhouse_packages }}"
       notify: Start clickhouse service
+      tags: clickhouse
     - name: Flush handlers
       ansible.builtin.meta: flush_handlers
+      tags: clickhouse
     - name: Create database
       ansible.builtin.command: "clickhouse-client -q 'create database logs;'"
       register: create_db
       failed_when: create_db.rc != 0 and create_db.rc != 82
       changed_when: create_db.rc == 0
+      tags: clickhouse
 - name: Install Vector
   hosts: vector
   tasks:
@@ -50,8 +53,7 @@
         extra_opts: [--strip-components=1]
         creates: "{{ vector_home }}/bin/vector"
       become: true
-      tags:
-        - vector
+      tags: vector
     - name: Set environment Vector
       ansible.builtin.template:
         src: templates/vec.sh.j2
@@ -75,12 +77,14 @@
         single_branch: true
         version: master
       become: true
+      tags: lighthouse
     - name: Install Nginx
       ansible.builtin.apt:
         name: nginx
         update_cache: true
         state: present
       become: true
+      tags: lighthouse
     - name: Copy Nginx config
       ansible.builtin.copy:
         src: "{{ clickhouse_config }}"
@@ -88,3 +92,4 @@
         mode: "0755"
       become: true
       notify: Start nginx service
+      tags: lighthouse
