@@ -1,5 +1,2 @@
-# Warning: This file is Ansible Managed, manual changes will be overwritten on next playbook run.
-#!/usr/bin/env bash
-
-export VECT_HOME={{ vector_home }}
-export PATH=$PATH:$VECT_HOME/bin
+---
+{{ vector_config | to_nice_yaml }}

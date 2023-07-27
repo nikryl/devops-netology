@@ -1,1 +1,1 @@
-clickhouse_config: "files/nginx.conf"
+lighthouse_config: "files/nginx.conf"
