@@ -8,7 +8,7 @@
 - [Play: Install and configure LightHouse](#play-install-and-configure-lighthouse)
 - [Inventory](#inventory)
 - [Переменные](#переменные)
-- [Теги](#теги)
+
 
 ### Play: Install Clickhouse
 
