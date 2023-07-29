@@ -1,60 +1,37 @@
-# Домашнее задание к занятию 3 «Использование Ansible»
+# Домашнее задание к занятию 4 «Работа с roles»
 
-## Подготовка к выполнению
+[Playbook](playbook/site.yml) был переработан для работы с ролями.  Все ранее используемые `play` были вынесены в отдельные роли:  
   
-1. Подготовьте в Yandex Cloud три хоста: для `clickhouse`, для `vector` и для `lighthouse`:  
+1. Play `Install Clickhouse` -> заменен на роль [AlexeySetevoi/ansible-clickhouse](https://github.com/AlexeySetevoi/ansible-clickhouse), указанную в домашнем задании  
   
-    В Yandex Cloud были созданы 3 виртуальные машины с ОС Ubuntu 22.04 с публичными адресами **158.160.20.15** (clickhouse), **84.201.179.34** (vector), **84.201.179.167** (lighthouse). Соответствующие адреса добавлены в файл *inventory/prod.yml* для подключения по ssh. 
+2. Play `Install Vector` -> вынесен в новую [роль](https://github.com/nikryl/vector-role) `vector-role` в отдельном репозитории  
+  
+3. Play `Install and configure LightHouse` -> разделен на 2 отдельные роли, для которых созданы новые репозитории:  
+  
+    - [роль](https://github.com/nikryl/lighthouse-role) `lighthouse-role` для установки `Lighthouse`  
+  
+    - [роль](https://github.com/nikryl/nginx-role) `nginx-role` для установки и конфигурации `Nginx`  
 ___
-2. При создании tasks рекомендую использовать модули: `get_url`, `template`, `yum`, `apt`: 
-    
-    Были использованы следущие модули:  
-        - **ansible.builtin.git** для клонирования GIT репозитория  
-        - **ansible.builtin.apt** для установки пакета Nginx  
-        - **ansible.builtin.copy** для копирования конфигурационного файла Nginx с локальной машины  
-        - **ansible.builtin.service** для запуска Nginx   
-___  
-3. Tasks должны: скачать статику LightHouse, установить Nginx или любой другой веб-сервер, настроить его конфиг для открытия LightHouse, запустить веб-сервер: 
-   
-    Как было описано в предыдущем шаге, LightHouse скачивается с помущью модуля **ansible.builtin.git**, следующим шагом с помощью **ansible.builtin.apt** устанавливаем Nginx и копируем конфиг модулем **ansible.builtin.copy**. Запуск сервера производится с помощью handler, использующий **ansible.builtin.service**.
-___  
-4. Подготовьте свой inventory-файл `prod.yml`: 
-   
-    ```yml
-    clickhouse:
-    hosts:
-        158.160.20.15:
-        ansible_connection: ssh 
-    vector:
-    hosts:
-        84.201.179.34:
-        ansible_connection: ssh
-    lighthouse:
-    hosts:
-        84.201.179.167:
-        ansible_connection: ssh 
-    ```
+  
+Все используемые роли описаны в файле `requirements.yml`:
+
+```yml
+    - src: git@github.com:AlexeySetevoi/ansible-clickhouse.git
+    scm: git
+    version: "1.13"
+    name: clickhouse 
+    - src: git@github.com:nikryl/vector-role.git
+    scm: git
+    version: "1.0.0"
+    name: vector
+    - src: git@github.com:nikryl/lighthouse-role.git
+    scm: git
+    version: "1.0.0"
+    name: lighthouse
+    - src: git@github.com:nikryl/nginx-role.git
+    scm: git
+    version: "1.0.0"
+    name: nginx
+```
 ___
-5. Запустите `ansible-lint site.yml` и исправьте ошибки, если они есть:  
   
-    ![ansible-lint](images/hw-8.3-5.png)
-___  
-6. Попробуйте запустить playbook на этом окружении с флагом `--check`:  
-  
-    ![check](images/hw-8.3-6.png)  
-    Проверка завершается с ошибкой, т.к. отсуствует зависимость, устанавливаемая в данном *play*.  
-___  
-7. Запустите playbook на `prod.yml` окружении с флагом `--diff`. Убедитесь, что изменения на системе произведены:  
-  
-    ![diff](images/hw-8.3-7.png)
-    Не сделал скриншоты к заданиям 6 и 7, пока отрабатывал playbook на ВМ в Яндекс Облаке, поэтому повторил выполнение изменив prod.yml на использование локальных docker контейнеров. При работе с машинами в Яндекс облаке поведение было идентичное.
- ___ 
-8. Повторно запустите playbook с флагом --diff и убедитесь, что playbook идемпотентен: 
-   
-    ![second run](images/hw-8.3-8.png)  
-___  
-9. Подготовьте README.md файл по своему playbook. В нём должно быть описано: что делает playbook, какие у него есть параметры и теги:  
-  
-    README файл располагается в папке [Playbook](playbook/README.md)
-___  
-10. Готовый playbook выложите в свой репозиторий, поставьте тег `08-ansible-03-yandex` на фиксирующий коммит, в ответ предоставьте ссылку на него.

@@ -1,0 +1,22 @@
+---
+- name: Install Vector
+  become: true
+  ansible.builtin.apt:
+    deb: https://packages.timber.io/vector/{{ vector_version }}/vector_{{ vector_version }}-1_amd64.deb
+  tags: install
+
+- name: Create directory for Vector config
+  ansible.builtin.file:
+    state: directory
+    path: "{{ vector_config_home }}"
+    mode: "0755"
+  become: true
+  tags: config
+
+- name: Copy Vector config
+  ansible.builtin.template:
+    src: templates/vec.sh.j2
+    dest: "{{ vector_config_home }}/vector.yml"
+    mode: "0755"
+  become: true
+  tags: config

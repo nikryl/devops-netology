@@ -1,0 +1,15 @@
+galaxy_info:
+  author: Nikolai Krylov
+  description: Install and configure Vector on Ubuntu (homework for Netology)
+  company: netology
+
+  license: MIT
+
+  min_ansible_version: 2.10
+
+  platforms:
+  - name: Ubuntu
+    versions:
+    - 20.04
+    - 22.04
+    - 23.04

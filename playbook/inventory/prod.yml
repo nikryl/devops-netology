@@ -1,13 +1,13 @@
 ---
 clickhouse:
   hosts:
-    158.160.20.15:
+    158.160.15.243:
       ansible_connection: ssh 
 vector:
   hosts:
-    84.201.179.34:
+    158.160.29.22:
       ansible_connection: ssh
 lighthouse:
   hosts:
-    84.201.179.167:
+    158.160.79.28:
       ansible_connection: ssh 

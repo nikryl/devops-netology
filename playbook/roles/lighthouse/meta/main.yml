@@ -1,0 +1,8 @@
+galaxy_info:
+  author: Nikolai Krylov
+  description: Clone Lighthouse GIT repository
+  company: netology
+
+  license: MIT
+
+  min_ansible_version: 2.10

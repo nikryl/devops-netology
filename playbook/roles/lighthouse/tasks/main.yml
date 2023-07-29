@@ -1,0 +1,8 @@
+---
+- name: Clone LightHouse GIT repository
+  ansible.builtin.git:
+    repo: https://github.com/VKCOM/lighthouse
+    dest: /LightHouse
+    single_branch: true
+    version: master
+  become: true

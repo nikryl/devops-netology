@@ -1,0 +1,17 @@
+---
+- name: Install Nginx
+  ansible.builtin.apt:
+    name: nginx
+    update_cache: true
+    state: present
+  become: true
+  tags: install
+
+- name: Copy Nginx config
+  ansible.builtin.copy:
+    src: "{{ lighthouse_config }}"
+    dest: "/etc/nginx/sites-enabled/default.conf"
+    mode: "0755"
+  become: true
+  notify: Start nginx service
+  tags: config

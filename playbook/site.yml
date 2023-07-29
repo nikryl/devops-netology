@@ -2,83 +2,18 @@
 - name: Install Clickhouse
   hosts: clickhouse
   tags: clickhouse
-  handlers:
-    - name: Start clickhouse service
-      become: true
-      ansible.builtin.service:
-        name: clickhouse-server
-        state: restarted
-
-  tasks:
-    - name: Install clickhouse packages
-      become: true
-      ansible.builtin.apt:
-        deb: https://packages.clickhouse.com/deb/pool/main/c/{{ item }}/{{ item }}_{{ clickhouse_version }}_amd64.deb
-      with_items: "{{ clickhouse_packages }}"
-      notify: Start clickhouse service
-
-    - name: Flush handlers
-      ansible.builtin.meta: flush_handlers
-
-    - name: Create database
-      ansible.builtin.command: "clickhouse-client -q 'create database logs;'"
-      register: create_db
-      failed_when: create_db.rc != 0 and create_db.rc != 82
-      changed_when: create_db.rc == 0
+  roles:
+    - name: clickhouse
 
 - name: Install Vector
   hosts: vector
   tags: vector
-  tasks:
-    - name: Install Vector
-      become: true
-      ansible.builtin.apt:
-        deb: https://packages.timber.io/vector/{{ vector_version }}/vector_{{ vector_version }}-1_amd64.deb
-
-    - name: Create directory for Vector config
-      ansible.builtin.file:
-        state: directory
-        path: "{{ vector_config_home }}"
-        mode: "0755"
-      become: true
-
-    - name: Copy Vector config
-      ansible.builtin.template:
-        src: templates/vec.sh.j2
-        dest: "{{ vector_config_home }}/vector.yml"
-        mode: "0755"
-      become: true
+  roles:
+    - name: vector
 
 - name: Install and configure LightHouse
   hosts: lighthouse
   tags: lighthouse
-  handlers:
-    - name: Start nginx service
-      become: true
-      ansible.builtin.service:
-        name: nginx
-        state: restarted
-
-  tasks:
-    - name: Clone LightHouse GIT repository
-      ansible.builtin.git:
-        repo: https://github.com/VKCOM/lighthouse
-        dest: /LightHouse
-        single_branch: true
-        version: master
-      become: true
-
-    - name: Install Nginx
-      ansible.builtin.apt:
-        name: nginx
-        update_cache: true
-        state: present
-      become: true
-
-    - name: Copy Nginx config
-      ansible.builtin.copy:
-        src: "{{ lighthouse_config }}"
-        dest: "/etc/nginx/sites-enabled/default.conf"
-        mode: "0755"
-      become: true
-      notify: Start nginx service
+  roles:
+    - name: lighthouse
+    - name: nginx
